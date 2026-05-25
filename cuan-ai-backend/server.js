@@ -66,7 +66,37 @@ async function analyzeWithClaude(prompt, apiKey) {
   }
 }
 
-// Routes
+// ========== ROOT HANDLER ==========
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'CUAN AI Backend API',
+    status: 'online',
+    version: '1.0.0',
+    endpoints: {
+      health: 'GET /api/health',
+      analyze: 'POST /api/analyze',
+      products: 'GET /api/products/:userId',
+      notifications: 'GET /api/notifications/:userId',
+      trending: 'GET /api/trending/:userId'
+    }
+  });
+});
+
+// Health Check
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok',
+    message: 'CUAN AI Backend is running!',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0',
+    env: {
+      supabase_url: process.env.SUPABASE_URL ? 'SET' : 'NOT_SET',
+      supabase_key: process.env.SUPABASE_KEY ? 'SET' : 'NOT_SET'
+    }
+  });
+});
+
+// ========== ROUTES ==========
 
 // 1. Analyze Product dengan Category Filter & Push Notification
 app.post('/api/analyze', async (req, res) => {
@@ -142,7 +172,7 @@ Jawab HANYA JSON VALID tanpa markdown:
 
     if (shouldNotify) {
       // Save notification to DB
-      const { notifError } = await supabase
+      await supabase
         .from('notifications')
         .insert([
           {
@@ -155,27 +185,20 @@ Jawab HANYA JSON VALID tanpa markdown:
           }
         ]);
 
-      // Send Web Push Notification
-      try {
-        // In real production, you'd store subscription objects
-        // For now, we'll send via service worker message
-        res.json({
-          success: true,
-          product: data[0],
-          analysis: analysis,
-          shouldPush: true,
-          pushData: {
-            title: `🔥 PRODUK EMAS: ${analysis.productName}`,
-            body: `${analysis.category} | Rp${formatCurrency(analysis.monthlyProfitPotential)}/bulan`,
-            icon: '🔥',
-            badge: '/badge.png',
-            tag: `product-${data[0].id}`,
-            requireInteraction: true
-          }
-        });
-      } catch (pushError) {
-        console.error('Push error:', pushError);
-      }
+      res.json({
+        success: true,
+        product: data[0],
+        analysis: analysis,
+        shouldPush: true,
+        pushData: {
+          title: `🔥 PRODUK EMAS: ${analysis.productName}`,
+          body: `${analysis.category} | Rp${formatCurrency(analysis.monthlyProfitPotential)}/bulan`,
+          icon: '🔥',
+          badge: '/badge.png',
+          tag: `product-${data[0].id}`,
+          requireInteraction: true
+        }
+      });
     } else {
       res.json({
         success: true,
@@ -201,7 +224,6 @@ app.post('/api/subscribe-push', async (req, res) => {
   try {
     const { userId, subscription, watchCategories } = req.body;
 
-    // Save subscription ke database
     const { data, error } = await supabase
       .from('push_subscriptions')
       .insert([
@@ -247,7 +269,7 @@ app.post('/api/unsubscribe-push', async (req, res) => {
   }
 });
 
-// 2. Get User Products
+// 4. Get User Products
 app.get('/api/products/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -271,7 +293,7 @@ app.get('/api/products/:userId', async (req, res) => {
   }
 });
 
-// 3. Get Notifications
+// 5. Get Notifications
 app.get('/api/notifications/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -295,7 +317,7 @@ app.get('/api/notifications/:userId', async (req, res) => {
   }
 });
 
-// 4. Mark Notification as Read
+// 6. Mark Notification as Read
 app.patch('/api/notifications/:notificationId', async (req, res) => {
   try {
     const { notificationId } = req.params;
@@ -319,7 +341,7 @@ app.patch('/api/notifications/:notificationId', async (req, res) => {
   }
 });
 
-// 5. Delete Product
+// 7. Delete Product
 app.delete('/api/products/:productId', async (req, res) => {
   try {
     const { productId } = req.params;
@@ -339,7 +361,7 @@ app.delete('/api/products/:productId', async (req, res) => {
   }
 });
 
-// 6. Get Dashboard Stats
+// 8. Get Dashboard Stats
 app.get('/api/stats/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -374,7 +396,7 @@ app.get('/api/stats/:userId', async (req, res) => {
   }
 });
 
-// 7. Real-time Trending Products (simulasi)
+// 9. Real-time Trending Products
 app.get('/api/trending', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -397,49 +419,7 @@ app.get('/api/trending', async (req, res) => {
   }
 });
 
-// Health Check
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    version: '1.0.0'
-  });
-});
-
-// Test endpoint untuk push
-app.post('/api/test-push', async (req, res) => {
-  try {
-    const { userId } = req.body;
-    
-    if (!userId) {
-      return res.status(400).json({ error: 'Missing userId' });
-    }
-
-    // Save test notification
-    await supabase
-      .from('notifications')
-      .insert([
-        {
-          user_id: userId,
-          type: 'test',
-          message: '🧪 Test notification - Push working!',
-          is_read: false,
-          created_at: new Date().toISOString()
-        }
-      ]);
-
-    res.json({ 
-      success: true,
-      message: 'Test notification sent!'
-    });
-
-  } catch (error) {
-    console.error('Test Push Error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get trending products by user
+// 10. Get trending products by user
 app.get('/api/trending/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -466,7 +446,7 @@ app.get('/api/trending/:userId', async (req, res) => {
   }
 });
 
-// Get push preferences
+// 11. Get push preferences
 app.get('/api/push-preferences/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -493,7 +473,7 @@ app.get('/api/push-preferences/:userId', async (req, res) => {
   }
 });
 
-// Update push preferences
+// 12. Update push preferences
 app.patch('/api/push-preferences/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
@@ -522,7 +502,7 @@ app.patch('/api/push-preferences/:userId', async (req, res) => {
   }
 });
 
-// Log analytics
+// 13. Log analytics
 app.post('/api/analytics', async (req, res) => {
   try {
     const { userId, action, productId, metadata } = req.body;
@@ -550,42 +530,44 @@ app.post('/api/analytics', async (req, res) => {
   }
 });
 
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-
-const app = express();
-const PORT = process.env.PORT || 3001;
-
-app.use(cors());
-app.use(express.json());
-
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    message: 'CUAN AI Backend is running!',
-    env: {
-      supabase_url: process.env.SUPABASE_URL ? 'SET' : 'NOT_SET',
-      supabase_key: process.env.SUPABASE_KEY ? 'SET' : 'NOT_SET'
+// 14. Test endpoint untuk push
+app.post('/api/test-push', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'Missing userId' });
     }
-  });
+
+    await supabase
+      .from('notifications')
+      .insert([
+        {
+          user_id: userId,
+          type: 'test',
+          message: '🧪 Test notification - Push working!',
+          is_read: false,
+          created_at: new Date().toISOString()
+        }
+      ]);
+
+    res.json({ 
+      success: true,
+      message: 'Test notification sent!'
+    });
+
+  } catch (error) {
+    console.error('Test Push Error:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.post('/api/analyze', (req, res) => {
-  res.json({ 
-    success: true, 
-    analysis: 'Test mode' 
-  });
-});
-
-app.get('/', (req, res) => {
-  res.json({ 
-    message: 'CUAN AI Backend API',
-    endpoints: ['/api/health', '/api/analyze']
-  });
-});
+// ========== START SERVER ==========
+const PORT = process.env.PORT || 3001;
 
 app.listen(PORT, () => {
   console.log(`🚀 CUAN AI Backend running on port ${PORT}`);
+  console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+
+module.exports = app;

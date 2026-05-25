@@ -4,6 +4,7 @@
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
+const ws = require('ws');
 require('dotenv').config();
 
 const app = express();
@@ -12,10 +13,20 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Supabase Client
+// Supabase Client dengan WebSocket support untuk Node.js 20
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_KEY
+  process.env.SUPABASE_KEY,
+  {
+    realtime: {
+      params: {
+        eventsPerSecond: 10
+      }
+    },
+    global: {
+      fetch: fetch
+    }
+  }
 );
 
 // Helper: Format Currency

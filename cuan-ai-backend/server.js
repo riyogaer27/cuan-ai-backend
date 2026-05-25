@@ -549,3 +549,43 @@ app.post('/api/analytics', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+app.use(cors());
+app.use(express.json());
+
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    message: 'CUAN AI Backend is running!',
+    env: {
+      supabase_url: process.env.SUPABASE_URL ? 'SET' : 'NOT_SET',
+      supabase_key: process.env.SUPABASE_KEY ? 'SET' : 'NOT_SET'
+    }
+  });
+});
+
+app.post('/api/analyze', (req, res) => {
+  res.json({ 
+    success: true, 
+    analysis: 'Test mode' 
+  });
+});
+
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'CUAN AI Backend API',
+    endpoints: ['/api/health', '/api/analyze']
+  });
+});
+
+app.listen(PORT, () => {
+  console.log(`🚀 CUAN AI Backend running on port ${PORT}`);
+});
